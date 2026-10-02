@@ -23,8 +23,8 @@ input{min-width:220px;flex:1} button,.btn{cursor:pointer} .primary{background:va
 .county{fill:var(--county-color,#dfe5dd);stroke:#fff;stroke-width:1.35;cursor:pointer;transition:fill .15s,filter .15s,stroke-width .15s,opacity .15s;outline:none}
 .county.has{opacity:1}.county.no-data{opacity:.55}
 .county:hover,.county:focus{fill:var(--hover);opacity:1;stroke-width:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}.county.selected{fill:var(--selected);opacity:1;stroke-width:2}
-.county-label{font-size:11px;font-weight:800;fill:#1f3625;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none;text-anchor:middle}
-.county-label.no-data{fill:#758078;font-weight:600;font-size:9.5px}
+.county-label{font-size:13px;font-weight:800;fill:#1f3625;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none;text-anchor:middle}
+.county-label.no-data{fill:#758078;font-weight:600;font-size:11.5px}
 .tip{position:fixed;display:none;pointer-events:auto;z-index:60;width:min(410px,calc(100vw - 24px));max-height:72vh;overflow:hidden;background:#203827;color:#fff;padding:0;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.24);font-size:14px;line-height:1.55;cursor:default}
 .tip-head{padding:13px 15px 9px;background:#203827;border-bottom:1px solid rgba(255,255,255,.14)}
 .tip h3{margin:0 0 5px;font-size:18px}.tip .tip-meta{opacity:.78;margin-bottom:3px}.tip-scroll-hint{font-size:12px;color:#d9eadc;margin-top:5px}
@@ -43,7 +43,7 @@ input{min-width:220px;flex:1} button,.btn{cursor:pointer} .primary{background:va
 .map-error{fill:#66756b;font-size:15px}.map-note{font-size:12px;color:#718078;margin:4px 4px 0}.map-part{transition:fill .15s,filter .15s,stroke-width .15s}
 footer{padding:20px;text-align:center;color:#6e7a70;font-size:13px;line-height:1.7}
 @media(max-width:900px){.layout{grid-template-columns:1fr} .mapcard{min-height:570px} #map{height:510px} .panel{height:auto;max-height:700px}}
-@media(max-width:520px){header{padding:20px 16px 15px} .toolbar{padding:10px} .layout{padding:10px;gap:10px} .mapcard{padding:9px;min-height:500px} #map{height:445px} .county-label{font-size:8.5px;stroke-width:2.5px} .panel{padding:14px}}
+@media(max-width:520px){header{padding:20px 16px 15px} .toolbar{padding:10px} .layout{padding:10px;gap:10px} .mapcard{padding:9px;min-height:500px} #map{height:445px} .county-label{font-size:10.5px;stroke-width:2.5px} .panel{padding:14px}}
 </style>
 </head>
 <body>
