@@ -243,12 +243,16 @@ function topoArcDecoder(topo) {
   }
   return function join(indexes) { let out=[]; indexes.forEach((i,n)=>{let pts=one(i);if(n&&pts.length)pts=pts.slice(1);out=out.concat(pts);});return out; };
 }
-function geometryRings(geom, join) {
-  if(geom.type==="Polygon") return geom.arcs.map(r=>join(r));
-  if(geom.type==="MultiPolygon") return geom.arcs.flatMap(poly=>poly.map(r=>join(r)));
+function geometryPolygons(geom, join) {
+  if(geom.type==="Polygon") return [geom.arcs.map(r=>join(r))];
+  if(geom.type==="MultiPolygon") return geom.arcs.map(poly=>poly.map(r=>join(r)));
   return [];
 }
+function geometryRings(geom, join) {
+  return geometryPolygons(geom,join).flat();
+}
 function polygonArea(r) { let a=0; for(let i=0,j=r.length-1;i<r.length;j=i++) a+=(r[j][0]*r[i][1]-r[i][0]*r[j][1]); return Math.abs(a/2); }
+function featureArea(f){ return f.rings.reduce((sum,r)=>sum+polygonArea(r),0); }
 function createGeoFit(allRings,w,h) {
   const pts=allRings.flat(); let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   pts.forEach(([x,y])=>{if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;});
@@ -256,21 +260,62 @@ function createGeoFit(allRings,w,h) {
   const ox=(w-(maxX-minX)*s)/2-minX*s, oy=(h-(maxY-minY)*s)/2+maxY*s;
   return ([x,y])=>[x*s+ox,oy-y*s];
 }
+function ringPath(r,project){
+  return r.map((pt,i)=>{const [x,y]=project(pt);return `${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;}).join(" ")+" Z";
+}
 async function tryDrawRealMap() {
   try {
     const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),3500);
     const res=await fetch(CONFIG.mapTopoUrl,{signal:ctl.signal,cache:"force-cache"}); clearTimeout(timer);
     if(!res.ok) throw new Error("map HTTP "+res.status); const topo=await res.json();
     const obj=topo.objects.counties || topo.objects[Object.keys(topo.objects).find(k=>k.toLowerCase().includes("count"))]; if(!obj) throw new Error("counties object missing");
-    const join=topoArcDecoder(topo); const features=obj.geometries.map(g=>({g,rings:geometryRings(g,join),name:countyDisplay(g.properties?.COUNTYNAME||g.properties?.COUNTY||g.properties?.name||"")}));
-    const all=features.flatMap(f=>f.rings); const svg=document.querySelector("#map"); const w=600,h=760, project=createGeoFit(all,w,h); svg.innerHTML="";svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
-    features.forEach(f=>{
-      if(!f.name)return; const hasData=rowsForCounty(f.name).length>0; const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(f.name)}`}); group.dataset.county=f.name;
-      f.rings.forEach(r=>{if(r.length<3)return; const d=r.map((pt,i)=>{const [x,y]=project(pt);return `${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;}).join(" ")+" Z"; group.appendChild(svgEl("path",{d,class:"map-part"}));});
-      bindCountyElement(group,f.name); svg.appendChild(group);
-      const main=f.rings.slice().sort((a,b)=>polygonArea(b)-polygonArea(a))[0]; if(main?.length){ const xs=main.map(p=>project(p)[0]),ys=main.map(p=>project(p)[1]); const x=(Math.min(...xs)+Math.max(...xs))/2,y=(Math.min(...ys)+Math.max(...ys))/2; appendCountyLabel(svg,f.name,x,y); }
+    const join=topoArcDecoder(topo);
+    const features=obj.geometries.map(g=>{
+      const polygons=geometryPolygons(g,join);
+      return {
+        g,
+        polygons,
+        rings:polygons.flat(),
+        name:countyDisplay(g.properties?.COUNTYNAME||g.properties?.COUNTY||g.properties?.name||"")
+      };
+    }).filter(f=>f.name && f.rings.length);
+
+    const all=features.flatMap(f=>f.rings);
+    const svg=document.querySelector("#map");
+    const w=600,h=760, project=createGeoFit(all,w,h);
+    svg.innerHTML=""; svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+
+    // 大區域先畫、小區域後畫，避免台北市被新北市蓋住。
+    const ordered=features.slice().sort((a,b)=>featureArea(b)-featureArea(a));
+    const labels=[];
+
+    ordered.forEach(f=>{
+      const hasData=rowsForCounty(f.name).length>0;
+      const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(f.name)}`});
+      group.dataset.county=f.name;
+
+      // 每個 Polygon 用一個 path，內圈採 evenodd，正確保留行政區中的「洞」。
+      f.polygons.forEach(poly=>{
+        const d=poly.filter(r=>r.length>=3).map(r=>ringPath(r,project)).join(" ");
+        if(d) group.appendChild(svgEl("path",{d,class:"map-part","fill-rule":"evenodd","clip-rule":"evenodd"}));
+      });
+
+      bindCountyElement(group,f.name);
+      svg.appendChild(group);
+
+      const main=f.rings.slice().sort((a,b)=>polygonArea(b)-polygonArea(a))[0];
+      if(main?.length){
+        const xs=main.map(p=>project(p)[0]),ys=main.map(p=>project(p)[1]);
+        labels.push({name:f.name,x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2});
+      }
     });
-    updateMapSelection(); document.querySelector("#mapMode").textContent="精細行政區界線已載入（Taiwan Atlas）"; return true;
+
+    // 所有縣市文字最後再畫，避免被其他行政區圖形遮住。
+    labels.forEach(l=>appendCountyLabel(svg,l.name,l.x,l.y));
+
+    updateMapSelection();
+    document.querySelector("#mapMode").textContent="精細行政區界線已載入（Taiwan Atlas）";
+    return true;
   } catch(e) { console.warn("精細地圖無法連線，使用內建離線地圖",e); return false; }
 }
 function parseCsv(text) {
