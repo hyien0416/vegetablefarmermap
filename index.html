@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合作社蔬菜農友互動地圖</title>
+<style>
+:root{--green:#2f6b3b;--green2:#4f8a55;--cream:#f6f3e8;--ink:#253127;--muted:#66756b;--card:#fff;--line:#d9e1d8;--hover:#f0b94d;--selected:#e69a32;}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--cream);color:var(--ink)}
+header{padding:26px 24px 18px;background:linear-gradient(135deg,#285e34,#4d874d);color:#fff}
+header h1{margin:0 0 8px;font-size:clamp(25px,4vw,42px)} header p{margin:0;opacity:.94;line-height:1.75;max-width:900px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;padding:14px 18px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+input,select,button,a.btn{font:inherit;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink);text-decoration:none}
+input{min-width:220px;flex:1} button,.btn{cursor:pointer} .primary{background:var(--green);color:#fff!important;border-color:var(--green)}
+.legend{display:flex;gap:15px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted);padding:0 2px 10px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(0,0,0,.08)} .dot.has{background:linear-gradient(135deg,#6ea8d9,#e1a35b,#7fba78)} .dot.none{background:rgba(150,160,150,.45)} .dot.sel{background:var(--selected)}
+.layout{display:grid;grid-template-columns:minmax(390px,1.15fr) minmax(330px,.85fr);gap:18px;padding:18px;max-width:1440px;margin:auto}
+.mapcard,.panel{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 28px rgba(32,64,38,.06)}
+.mapcard{padding:14px;min-height:700px;position:relative} #map{width:100%;height:640px;display:block}
+.map-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px 4px 8px}
+.map-head h2{margin:0;font-size:20px} .map-head p{margin:3px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+.county{fill:var(--county-color,#dfe5dd);stroke:#fff;stroke-width:1.35;cursor:pointer;transition:fill .15s,filter .15s,stroke-width .15s,opacity .15s;outline:none}
+.county.has{opacity:1}.county.no-data{opacity:.55}
+.county:hover,.county:focus{fill:var(--hover);opacity:1;stroke-width:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}.county.selected{fill:var(--selected);opacity:1;stroke-width:2}
+.county-label{font-size:11px;font-weight:800;fill:#1f3625;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none;text-anchor:middle}
+.county-label.no-data{fill:#758078;font-weight:600;font-size:9.5px}
+.tip{position:fixed;display:none;pointer-events:auto;z-index:60;width:min(410px,calc(100vw - 24px));max-height:72vh;overflow:hidden;background:#203827;color:#fff;padding:0;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.24);font-size:14px;line-height:1.55;cursor:default}
+.tip-head{padding:13px 15px 9px;background:#203827;border-bottom:1px solid rgba(255,255,255,.14)}
+.tip h3{margin:0 0 5px;font-size:18px}.tip .tip-meta{opacity:.78;margin-bottom:3px}.tip-scroll-hint{font-size:12px;color:#d9eadc;margin-top:5px}
+.tip-scroll{max-height:min(55vh,470px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 15px 10px}
+.tip-scroll::-webkit-scrollbar{width:9px}.tip-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:10px}.tip-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.34);border-radius:10px}
+.tip .tip-row{padding:8px 0;border-top:1px solid rgba(255,255,255,.15)}.tip .tip-row:first-child{border-top:0}.tip .tip-name{font-weight:800}.tip .tip-items{opacity:.88;font-size:13px}
+.panel{padding:18px;height:700px;overflow:auto} .panel h2{margin:0 0 7px} .meta{color:var(--muted);font-size:14px;margin-bottom:14px;line-height:1.5}
+.county-summary{background:#f2f7ee;border:1px solid #dfe9da;padding:12px;border-radius:14px;margin-bottom:12px} .county-summary strong{font-size:18px}
+.farmer{border:1px solid var(--line);border-radius:14px;padding:13px;margin:10px 0;cursor:pointer;background:#fcfdf9;transition:.15s} .farmer:hover,.farmer:focus{border-color:#87a98b;background:#f4f8ef;outline:2px solid rgba(47,107,59,.16)} 
+.name{font-weight:800;font-size:17px} .town{display:inline-block;font-size:12px;color:#fff;background:#718a72;border-radius:999px;padding:3px 8px;margin-left:6px} .items{margin-top:7px;color:#445348;line-height:1.6}
+.item-chip{display:inline-block;background:#edf4e8;border-radius:999px;padding:4px 8px;font-size:12px;margin:2px 3px 2px 0}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(560px,100%);background:#fff;z-index:80;box-shadow:-15px 0 45px rgba(0,0,0,.18);transform:translateX(105%);transition:.25s;overflow:auto} .drawer.open{transform:none}
+.close{position:sticky;top:10px;float:right;margin:10px 12px;border:0;background:#eef3eb;z-index:3} .hero{aspect-ratio:16/9;background:#e4ebdf;display:grid;place-items:center;color:#6f7e70;overflow:hidden;font-size:16px} .hero img{width:100%;height:100%;object-fit:cover}
+.detail{padding:22px} .detail h2{font-size:30px;margin:0 0 5px} .supply-title{font-size:14px;color:var(--muted);margin:14px 0 4px} .chips{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 14px} .chip{background:#eaf3e5;border:1px solid #d6e4d0;border-radius:999px;padding:7px 10px;font-size:14px;font-weight:700}
+.section{border-top:1px solid var(--line);padding-top:15px;margin-top:15px} .placeholder{color:#869288;font-style:italic}
+.map-error{fill:#66756b;font-size:15px}.map-note{font-size:12px;color:#718078;margin:4px 4px 0}.map-part{transition:fill .15s,filter .15s,stroke-width .15s}
+footer{padding:20px;text-align:center;color:#6e7a70;font-size:13px;line-height:1.7}
+@media(max-width:900px){.layout{grid-template-columns:1fr} .mapcard{min-height:570px} #map{height:510px} .panel{height:auto;max-height:700px}}
+@media(max-width:520px){header{padding:20px 16px 15px} .toolbar{padding:10px} .layout{padding:10px;gap:10px} .mapcard{padding:9px;min-height:500px} #map{height:445px} .county-label{font-size:8.5px;stroke-width:2.5px} .panel{padding:14px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>合作社蔬菜農友互動地圖</h1>
+  <p>把菜從哪裡來、由誰種、供應什麼，一張台灣行政區地圖看懂。滑鼠移到縣市可直接查看農友與供應品項；點縣市固定清單，再點農友看完整品項與介紹。</p>
+</header>
+<div class="toolbar">
+  <input id="search" placeholder="搜尋農友、鄉鎮或蔬菜品項…" aria-label="搜尋農友、鄉鎮或蔬菜品項">
+  <select id="countyFilter" aria-label="篩選縣市"><option value="">全部縣市</option></select>
+  <button id="resetMap" type="button">回到全部</button>
+</div>
+<main class="layout">
+  <section class="mapcard">
+    <div class="map-head"><div><h2>台灣縣市行政區</h2><p>各縣市以不同顏色區分；半透明＝目前尚無農友資料。滑鼠移入或點擊縣市查看。</p></div></div>
+    <div class="legend"><span><i class="dot has"></i>各縣市不同顏色</span><span><i class="dot none"></i>半透明＝尚無資料</span><span><i class="dot sel"></i>橘色＝目前選取</span></div><div id="mapMode" class="map-note">內建離線行政區互動圖</div>
+    <svg id="map" role="img" aria-label="台灣縣市行政區互動地圖"></svg>
+    <div id="tip" class="tip" aria-live="polite"></div>
+  </section>
+  <aside class="panel">
+    <h2 id="panelTitle">全部農友</h2>
+    <div class="meta" id="summary"></div>
+    <div id="countySummary"></div>
+    <div id="list"></div>
+  </aside>
+</main>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <button class="close" id="close" type="button">✕ 關閉</button>
+  <div id="drawerContent"></div>
+</aside>
+<footer>資料初版：2026/10/02 ｜ 地圖：各縣市不同色彩；浮動農友清單可滾輪瀏覽；連線可用時自動套用 Taiwan Atlas 行政區界</footer>
+<script>
+const CONFIG = {
+  sheetCsvUrl: "",
+  mapTopoUrl: "https://cdn.jsdelivr.net/npm/taiwan-atlas/counties-10t.json"
+};
+let farmers = [{"county": "新北市", "town": "三芝", "name": "謝金全", "items": "瓜果類、山藥、豆薯", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "新北市", "town": "三芝", "name": "楊如琳", "items": "葉菜類、瓜果類、山藥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "新北市", "town": "三芝", "name": "簡德源", "items": "赤殼茭白筍、地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "台北市", "town": "北投", "name": "陳心瑋", "items": "瓜果類、葉菜類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "新北市", "town": "五股", "name": "吳泓泰", "items": "觀音山綠竹筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "新北市", "town": "金山", "name": "陳忠慶", "items": "金山紅肉地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "新北市", "town": "金山", "name": "台灣環境永續有限公司(謝永芳)", "items": "金山黃肉地瓜、金山紅肉地瓜、金山栗子地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台北/新北"}, {"county": "宜蘭縣", "town": "礁溪", "name": "林漢祥", "items": "溫泉空心菜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "宜蘭縣", "town": "南澳", "name": "何仁興", "items": "段木香菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "宜蘭縣", "town": "南澳", "name": "韋文吉", "items": "山蘇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "宜蘭縣", "town": "員山", "name": "蘭陽合作社", "items": "赤殼茭白筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "宜蘭縣", "town": "員山", "name": "程超傑", "items": "蓮藕", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "宜蘭縣", "town": "三星", "name": "陳國鐘(行健農場)", "items": "三星蔥、三星白蒜、紫芋地瓜、葉菜類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "宜蘭"}, {"county": "花蓮縣", "town": "吉安", "name": "陳柏叡", "items": "龍鬚菜、佛手瓜、大花菜類、瓜果類、馬鈴薯", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "花蓮"}, {"county": "花蓮縣", "town": "壽豐", "name": "李家豐", "items": "食用百合", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "花蓮"}, {"county": "花蓮縣", "town": "壽豐", "name": "黃偉哲", "items": "毛豆", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "花蓮"}, {"county": "桃園市", "town": "復興", "name": "彭康偉", "items": "葉菜類、根莖類、瓜果類、生薑", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "桃園"}, {"county": "桃園市", "town": "復興", "name": "田嘉鈴", "items": "葉菜類、包心白、甘藍、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "桃園"}, {"county": "桃園市", "town": "新屋", "name": "葉筱梅", "items": "葉菜類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "桃園"}, {"county": "桃園市", "town": "八德", "name": "綠藤芽菜", "items": "三日苗、青花椰苗、紫高麗苗", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "桃園"}, {"county": "桃園市", "town": "大溪", "name": "新峰芽菜", "items": "黃豆芽、綠豆芽、苜蓿芽、豌豆苗", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "桃園"}, {"county": "新竹縣", "town": "尖石", "name": "羅彌迦", "items": "葉菜類、甘藍、包心白、包心芥、白蘿蔔、瓜果類、花椰菜、青蔥、青蒜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "江文平", "items": "葉菜類、甘藍、包心白、包心芥、白蘿蔔、瓜果類、花椰菜、青蔥、青蒜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "沈世偉", "items": "葉菜類、瓜果類、青蔥、青蒜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "林柏清", "items": "葉菜類、甘藍、包心白、包心芥、白蘿蔔", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "林柏如", "items": "葉菜類、甘藍、包心白、包心芥、白蘿蔔", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "林程詳", "items": "葉菜類、甘藍、包心白、瓜果類、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "新竹縣", "town": "尖石", "name": "林約翰", "items": "葉菜類、甘藍、包心白、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "新竹"}, {"county": "苗栗縣", "town": "三義", "name": "張壬菩", "items": "瓜果類、地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "苗栗"}, {"county": "苗栗縣", "town": "卓蘭、東勢", "name": "范玉芳", "items": "小黑栗子南瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "苗栗"}, {"county": "苗栗縣", "town": "獅潭", "name": "百壽芽菜", "items": "黃豆芽、綠豆芽、苜蓿芽、豌豆苗", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "苗栗"}, {"county": "台中市", "town": "和平", "name": "羅伊秀", "items": "新鮮香菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "台中市", "town": "新社", "name": "陳耀松(青松)", "items": "新鮮香菇、乾香菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "台中市", "town": "新社", "name": "就是鮮菇有限公司", "items": "新鮮香菇、黑木耳、川耳、有機綜合菇、有機銀耳、有機乾姬松茸", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "台中市", "town": "烏日", "name": "張東賢", "items": "小黃瓜、甜椒", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "台中市", "town": "大安", "name": "林義職", "items": "芋頭", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "台中市", "town": "石岡、苑裡", "name": "隆谷", "items": "金針菇、柳松菇、鴻喜菇、新鮮白木耳", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台中"}, {"county": "彰化縣", "town": "埔鹽", "name": "陳慶輝", "items": "花椰菜、瓜果類、小番茄、洋香瓜、美濃瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "彰化"}, {"county": "彰化縣", "town": "溪湖", "name": "曹素珍", "items": "花椰菜、葉菜類、瓜果類、小番茄、韭菜花、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "彰化"}, {"county": "彰化縣", "town": "埔心", "name": "蕈優", "items": "黑美人菇、陶立克菇、杏鮑菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "彰化"}, {"county": "彰化縣", "town": "埤頭", "name": "鄭源卿", "items": "花椰菜、葉菜類、瓜果類、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "彰化"}, {"county": "彰化縣", "town": "和美", "name": "彰化縣菇類生產合作社", "items": "金滑菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "彰化"}, {"county": "南投縣", "town": "埔里", "name": "陳守安", "items": "茭白筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "埔里", "name": "洪權宏", "items": "茭白筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "名間", "name": "謝樹篤", "items": "人蔘山藥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "名間", "name": "名間產銷班", "items": "秀珍菇、白精靈菇、雪白菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "名間", "name": "陳宏白", "items": "竹薑", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "吳阿香", "items": "佛手瓜、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "吳坤錦", "items": "葉菜類、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "余登貴", "items": "葉菜類、瓜果類、生薑、芭蕉", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "楊春發", "items": "葉菜類、瓜果類、生薑、青梅", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "陳明德", "items": "葉菜類、瓜果類、生薑", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "吳聰明", "items": "葉菜類、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "南投縣", "town": "仁愛", "name": "林瓊珠", "items": "甜柿、牛番茄", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "南投"}, {"county": "雲林縣", "town": "西螺", "name": "廖俊凱", "items": "葉菜類、根莖類、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "虎尾", "name": "張朝陽", "items": "葉菜類、根莖類、瓜果類、豆類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "斗南", "name": "蘇榮", "items": "人蔘山藥、馬鈴薯、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "斗南", "name": "鉅檂農業科技有限公司", "items": "蒜仁", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "斗六", "name": "王文傑", "items": "金時地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "大埤", "name": "李新護", "items": "蒜頭(減農藥栽培)", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "土庫", "name": "張秋田", "items": "蒜頭(減農藥栽培)", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "土庫", "name": "王水聲", "items": "馬鈴薯、甜菜根、玉米筍、花生", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "口湖", "name": "郭明源", "items": "地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "水林", "name": "楊翔喻", "items": "洋菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "水林", "name": "林福源", "items": "地瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "草嶺", "name": "吳霖蘿", "items": "段木香菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "雲林縣", "town": "東勢", "name": "潘穎儒", "items": "日本白蘿蔔、瓜果類、蒜頭、蒜米", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "雲林"}, {"county": "嘉義縣市", "town": "義竹", "name": "翁錦煌", "items": "葉菜類、瓜果類、地瓜、紅蘿蔔、洋香瓜、小西瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "嘉義縣市", "town": "竹崎", "name": "王俊童", "items": "生薑(減農藥栽培)", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "嘉義縣市", "town": "嘉義市", "name": "李長安", "items": "甜筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "嘉義縣市", "town": "東石", "name": "看天田有機農場", "items": "玉米類、玉米筍、紅蘿蔔、洋蔥、紅蔥頭", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "嘉義縣市", "town": "六腳", "name": "謝水明", "items": "彩椒、小黃瓜", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "嘉義縣市", "town": "中埔", "name": "彥廷農場", "items": "新鮮黑木耳", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "嘉義"}, {"county": "台南市", "town": "新市、新化", "name": "王宗益", "items": "葉菜類、大花菜類、包心菜類、根莖類、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "新化", "name": "樓正福", "items": "葉菜類、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "新化", "name": "羅云堅", "items": "瓜果類、根莖類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "安南", "name": "楊湘頻", "items": "葉菜類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "善化", "name": "洪淑珍", "items": "甜椒、玉米", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "西港", "name": "謝素凉", "items": "綠蘆筍", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "玉井", "name": "陳明宏", "items": "絲瓜、麻糬茄、皇帝豆、粉豆", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "玉井", "name": "許悦玲", "items": "敏豆、南瓜、茄子", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "台南市", "town": "白河", "name": "楊家銘", "items": "新鮮蓮子、蓮藕", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "台南"}, {"county": "高雄市", "town": "大樹", "name": "張立坤", "items": "瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "高雄"}, {"county": "高雄市", "town": "田寮", "name": "朱明發", "items": "甘藍、漳浦包白、瓜果類", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "高雄"}, {"county": "高雄市", "town": "旗山", "name": "黃啟軒", "items": "水蓮", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "高雄"}, {"county": "屏東縣", "town": "鹽埔", "name": "鄭英文", "items": "漳浦包白、瓜果類、青蔥、芫荽", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "鹽埔", "name": "鄭天貴", "items": "瓜果類、青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "鹽埔", "name": "鄭玉榮", "items": "漳浦包白、瓜果類、青蔥、芫荽", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "潮洲", "name": "永豐農場", "items": "紫高芽、青花芽、四合一芽苗、綠豆芽、黃豆芽", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "長治", "name": "田中央合作社", "items": "小黃瓜、葉菜類、彩色小番茄", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "恆春", "name": "尤憲德", "items": "洋蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "屏東市", "name": "伯大尼", "items": "青蔥", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "屏東市", "name": "陳建行", "items": "牛蒡", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "萬丹", "name": "黃淑女", "items": "九層塔、青蔥、芫荽", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}, {"county": "屏東縣", "town": "牡丹", "name": "丁采綸", "items": "雨來菇", "photo": "", "intro": "", "story": "", "article": "", "status": "待補照片/介紹", "updated": "2026-10-02", "source": "屏東"}];
+let selectedCounty = "";
+const SCHEMATIC = [{"county": "新北市", "parts": ["255,55 310,45 310,72 303,104 280,130 245,115 235,85", "347,75 362,65 375,100 365,135 330,150 330,118 355,102"], "label": [285, 92]}, {"county": "台北市", "parts": ["310,72 347,75 355,102 330,118 303,104"], "label": [330, 94]}, {"county": "基隆市", "parts": ["362,65 385,70 395,88 375,100 355,90"], "label": [380, 82]}, {"county": "桃園市", "parts": ["245,115 280,130 300,155 285,190 235,185 220,150"], "label": [260, 157]}, {"county": "宜蘭縣", "parts": ["330,150 365,135 390,165 380,220 345,235 315,200"], "label": [354, 188]}, {"county": "新竹縣", "parts": ["235,185 285,190 300,220 270,250 220,245 210,215"], "label": [258, 218]}, {"county": "新竹市", "parts": ["213,204 237,205 240,225 217,227"], "label": [226, 216]}, {"county": "苗栗縣", "parts": ["220,245 270,250 295,285 275,315 215,310 205,275"], "label": [245, 280]}, {"county": "台中市", "parts": ["215,310 275,315 315,340 300,385 220,380 205,345"], "label": [252, 348]}, {"county": "南投縣", "parts": ["295,285 345,235 360,300 350,380 300,385 315,340"], "label": [329, 326]}, {"county": "花蓮縣", "parts": ["345,235 380,220 390,300 385,390 375,470 350,500 340,430 350,380 360,300"], "label": [370, 365]}, {"county": "彰化縣", "parts": ["220,380 300,385 295,420 215,415 205,395"], "label": [252, 400]}, {"county": "雲林縣", "parts": ["215,415 295,420 300,455 225,460 210,440"], "label": [252, 438]}, {"county": "嘉義縣", "parts": ["225,460 300,455 325,490 300,525 235,515 218,490"], "label": [268, 492]}, {"county": "嘉義市", "parts": ["257,472 277,474 279,491 258,493"], "label": [268, 483]}, {"county": "台南市", "parts": ["235,515 300,525 310,565 250,580 225,550"], "label": [267, 548]}, {"county": "高雄市", "parts": ["300,525 325,490 350,500 360,560 335,615 290,610 310,565"], "label": [327, 558]}, {"county": "台東縣", "parts": ["350,500 375,470 365,540 350,610 335,660 315,700 300,680 335,615 360,560"], "label": [345, 595]}, {"county": "屏東縣", "parts": ["250,580 290,610 335,615 315,700 300,720 280,680 255,640 240,605"], "label": [286, 650]}, {"county": "澎湖縣", "parts": ["120,455 137,450 146,462 137,475 120,473 111,463", "149,480 159,478 166,488 158,498 147,494"], "label": [136, 514]}, {"county": "金門縣", "parts": ["60,330 89,326 104,342 96,358 70,361 54,347"], "label": [79, 377]}, {"county": "連江縣", "parts": ["82,150 96,144 105,154 99,166 84,168 76,159"], "label": [90, 184]}];
+
+const COUNTY_PALETTE=["#6FA8DC","#8E7CC3","#76A5AF","#93C47D","#FFD966","#F6B26B","#E06666","#C27BA0","#A4C2F4","#B6D7A8","#D5A6BD","#F9CB9C","#A2C4C9","#B4A7D6","#FFE599","#E6B8AF","#81A9D3","#77BFA3","#D89A6A","#9FC5E8","#C9DA8A","#B7A6D9"];
+const COUNTY_COLORS=Object.fromEntries(SCHEMATIC.map((x,i)=>[x.county,COUNTY_PALETTE[i%COUNTY_PALETTE.length]]));
+function countyColor(county){const key=countyDisplay(county);return COUNTY_COLORS[key]||"#9EB7A1";}
+
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const normalize=s=>String(s||"").replaceAll("台","臺").replace("縣市","");
+const countyDisplay=s=>String(s||"").replaceAll("臺","台");
+const SVGNS="http://www.w3.org/2000/svg";
+
+function rowsForCounty(county) {
+  const n=normalize(county);
+  if(n==="嘉義市") return farmers.filter(f=>normalize(f.county)==="嘉義" && String(f.town).includes("嘉義市"));
+  if(n==="嘉義縣") return farmers.filter(f=>normalize(f.county)==="嘉義" && !String(f.town).includes("嘉義市"));
+  return farmers.filter(f=>normalize(f.county)===n);
+}
+function countyFromFarmer(f) {
+  if(f.county==="嘉義縣市") return String(f.town).includes("嘉義市") ? "嘉義市" : "嘉義縣";
+  return f.county;
+}
+const COUNTY_ORDER = [
+  "基隆市","台北市","新北市","桃園市","宜蘭縣",
+  "新竹市","新竹縣","苗栗縣","台中市","彰化縣","南投縣","雲林縣",
+  "嘉義市","嘉義縣","台南市","高雄市","屏東縣",
+  "澎湖縣","金門縣","連江縣",
+  "花蓮縣","台東縣"
+];
+
+function allCountiesWithData() {
+  const dataCounties = new Set(farmers.map(countyFromFarmer));
+  return COUNTY_ORDER.filter(c => dataCounties.has(c));
+}
+
+function fillCountyFilter() {
+  const el=document.querySelector("#countyFilter");
+  el.innerHTML='<option value="">全部縣市</option>';
+  allCountiesWithData().forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;el.appendChild(o)});
+}
+function itemChips(items) { return String(items||"").split("、").filter(Boolean).map(x=>`<span class="item-chip">${esc(x)}</span>`).join(""); }
+function renderList(rows,title="全部農友",county="") {
+  document.querySelector("#panelTitle").textContent=title;
+  document.querySelector("#summary").textContent=`${rows.length} 位農友／生產單位`;
+  const countySummary=document.querySelector("#countySummary");
+  if(county) {
+    const uniqueItems=[...new Set(rows.flatMap(f=>String(f.items||"").split("、").filter(Boolean)))];
+    countySummary.innerHTML=`<div class="county-summary"><strong>${esc(county)}</strong><div class="meta" style="margin:4px 0 5px">${rows.length} 位農友／單位，主要供應 ${uniqueItems.length} 種品項</div><div>${uniqueItems.slice(0,18).map(x=>`<span class="item-chip">${esc(x)}</span>`).join("")}</div></div>`;
+  } else countySummary.innerHTML="";
+  document.querySelector("#list").innerHTML=rows.map(f=>`<div class="farmer" tabindex="0" role="button" data-key="${esc(f.name)}"><div><span class="name">${esc(f.name)}</span><span class="town">${esc(f.town)}</span></div><div class="items">${itemChips(f.items)}</div></div>`).join("") || '<p class="placeholder">目前沒有符合資料。</p>';
+  document.querySelectorAll(".farmer").forEach(el=>{
+    const open=()=>openFarmer(rows.find(f=>f.name===el.dataset.key) || farmers.find(f=>f.name===el.dataset.key));
+    el.addEventListener("click",open);
+    el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open();}});
+  });
+}
+function openFarmer(f) {
+  if(!f)return;
+  const photo=f.photo?`<img src="${esc(f.photo)}" alt="${esc(f.name)}">`:`<div>📷 農友照片待補</div>`;
+  const chips=String(f.items||"").split("、").filter(Boolean).map(x=>`<span class="chip">${esc(x)}</span>`).join("");
+  document.querySelector("#drawerContent").innerHTML=`<div class="hero">${photo}</div><div class="detail"><h2>${esc(f.name)}</h2><div class="meta">${esc(countyFromFarmer(f))}・${esc(f.town)}</div><div class="supply-title">供應品項</div><div class="chips">${chips}</div><div class="section"><h3>農友介紹</h3><p>${f.intro?esc(f.intro):'<span class="placeholder">待補農友介紹。</span>'}</p></div><div class="section"><h3>產地故事／圖文說明</h3><p>${f.story?esc(f.story):'<span class="placeholder">待補圖文內容。</span>'}</p></div>${f.article?`<div class="section"><a class="btn primary" href="${esc(f.article)}" target="_blank" rel="noopener">閱讀相關文章</a></div>`:""}</div>`;
+  const d=document.querySelector("#drawer"); d.classList.add("open"); d.setAttribute("aria-hidden","false");
+}
+document.querySelector("#close").addEventListener("click",()=>{document.querySelector("#drawer").classList.remove("open");document.querySelector("#drawer").setAttribute("aria-hidden","true")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape") document.querySelector("#close").click();});
+
+function updateMapSelection() {
+  document.querySelectorAll(".county").forEach(el=>el.classList.toggle("selected", normalize(el.dataset.county)===normalize(selectedCounty)));
+}
+function setSelectedCounty(county, fromMap=true) {
+  hideTip();
+  selectedCounty=county||"";
+  const filter=document.querySelector("#countyFilter");
+  if([...filter.options].some(o=>o.value===selectedCounty)) filter.value=selectedCounty; else filter.value="";
+  if(selectedCounty) renderList(rowsForCounty(selectedCounty),selectedCounty,selectedCounty); else renderList(farmers,"全部農友","");
+  updateMapSelection();
+  if(fromMap) document.querySelector("#search").value="";
+}
+function applyFilter() {
+ const q=document.querySelector("#search").value.trim().toLowerCase();
+ const c=document.querySelector("#countyFilter").value;
+ selectedCounty=c;
+ let rows=farmers.filter(f=>(!c||normalize(countyFromFarmer(f))===normalize(c))&&(!q||[f.name,f.town,f.items,countyFromFarmer(f)].join(" ").toLowerCase().includes(q)));
+ renderList(rows,c || (q?`搜尋：${q}`:"全部農友"),c);
+ updateMapSelection();
+}
+document.querySelector("#search").addEventListener("input",applyFilter);
+document.querySelector("#countyFilter").addEventListener("change",applyFilter);
+document.querySelector("#resetMap").addEventListener("click",()=>{document.querySelector("#search").value="";document.querySelector("#countyFilter").value="";selectedCounty="";renderList(farmers,"全部農友","");updateMapSelection();});
+
+let hideTipTimer=null;
+function cancelTipHide(){if(hideTipTimer){clearTimeout(hideTipTimer);hideTipTimer=null;}}
+function scheduleHideTip(){cancelTipHide();hideTipTimer=setTimeout(hideTip,320);}
+function showTip(event, county) {
+  cancelTipHide();
+  const rows=rowsForCounty(county);
+  const tip=document.querySelector("#tip");
+  const hint=rows.length>5?'<div class="tip-scroll-hint">↕ 農友較多，可將滑鼠移入視窗後用滾輪往下瀏覽</div>':'';
+  tip.innerHTML=`<div class="tip-head"><h3>${esc(county)}</h3><div class="tip-meta">${rows.length?`${rows.length} 位農友／生產單位`:"目前尚無農友資料"}</div>${hint}</div><div class="tip-scroll">${rows.map(f=>`<div class="tip-row"><div class="tip-name">${esc(f.name)} <span style="font-weight:400;opacity:.75">｜${esc(f.town)}</span></div><div class="tip-items">${esc(f.items)}</div></div>`).join("")||'<div class="tip-row">目前尚無農友資料</div>'}</div>`;
+  tip.style.display="block"; positionTip(event);
+}
+function positionTip(event) {
+  const tip=document.querySelector("#tip"); if(tip.style.display==="none") return;
+  const pad=12,gap=14,r=tip.getBoundingClientRect(); let x=(event.clientX||20)+gap,y=(event.clientY||20)+gap;
+  if(x+r.width>window.innerWidth-pad) x=(event.clientX||20)-r.width-gap;
+  if(y+r.height>window.innerHeight-pad) y=Math.max(pad,window.innerHeight-r.height-pad);
+  tip.style.left=Math.max(pad,x)+"px"; tip.style.top=Math.max(pad,y)+"px";
+}
+function hideTip() {cancelTipHide();document.querySelector("#tip").style.display="none";}
+const tipEl=document.querySelector("#tip");
+tipEl.addEventListener("mouseenter",cancelTipHide);
+tipEl.addEventListener("mouseleave",hideTip);
+tipEl.addEventListener("wheel",e=>e.stopPropagation(),{passive:true});
+
+function bindCountyElement(el, county) {
+  el.dataset.county=county; el.setAttribute("tabindex","0"); el.setAttribute("role","button");
+  el.setAttribute("aria-label",`${county}，${rowsForCounty(county).length} 位農友或生產單位`);
+  el.addEventListener("mouseenter",e=>showTip(e,county)); el.addEventListener("mousemove",positionTip); el.addEventListener("mouseleave",scheduleHideTip);
+  el.addEventListener("focus",e=>{const r=e.currentTarget.getBoundingClientRect();showTip({clientX:r.right,clientY:r.top},county);}); el.addEventListener("blur",scheduleHideTip);
+  el.addEventListener("click",()=>setSelectedCounty(county));
+  el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelectedCounty(county);}});
+}
+function svgEl(name,attrs={}) { const el=document.createElementNS(SVGNS,name); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
+
+function drawSchematicMap() {
+  const svg=document.querySelector("#map"); svg.innerHTML=""; svg.setAttribute("viewBox","0 0 600 760");
+  const bg=svgEl("rect",{x:0,y:0,width:600,height:760,fill:"#fbfcf8",rx:16}); svg.appendChild(bg);
+  SCHEMATIC.forEach(item=>{
+    const hasData=rowsForCounty(item.county).length>0; const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(item.county)}`}); group.dataset.county=item.county;
+    item.parts.forEach(points=>{const poly=svgEl("polygon",{points,class:"map-part"});group.appendChild(poly);});
+    bindCountyElement(group,item.county); svg.appendChild(group);
+    const [x,y]=item.label; const t=svgEl("text",{x,y,class:rowsForCounty(item.county).length?"county-label":"county-label no-data"});
+    t.textContent=item.county.replace(/[縣市]$/,""); svg.appendChild(t);
+  });
+  updateMapSelection();
+  document.querySelector("#mapMode").textContent="內建離線行政區互動圖（可直接雙擊 HTML 使用）";
+}
+
+// Minimal TopoJSON decoder. When the online county boundary file is available, replace the offline schematic with real boundaries.
+function topoArcDecoder(topo) {
+  const cache=new Map(); const tr=topo.transform;
+  function one(i) {
+    const key=i; if(cache.has(key)) return cache.get(key).map(p=>p.slice());
+    const rev=i<0; const idx=rev?~i:i; let x=0,y=0;
+    let pts=topo.arcs[idx].map(q=>{x+=q[0];y+=q[1];return tr?[x*tr.scale[0]+tr.translate[0],y*tr.scale[1]+tr.translate[1]]:[x,y];});
+    if(rev) pts=pts.reverse(); cache.set(key,pts); return pts.map(p=>p.slice());
+  }
+  return function join(indexes) { let out=[]; indexes.forEach((i,n)=>{let pts=one(i);if(n&&pts.length)pts=pts.slice(1);out=out.concat(pts);});return out; };
+}
+function geometryRings(geom, join) {
+  if(geom.type==="Polygon") return geom.arcs.map(r=>join(r));
+  if(geom.type==="MultiPolygon") return geom.arcs.flatMap(poly=>poly.map(r=>join(r)));
+  return [];
+}
+function polygonArea(r) { let a=0; for(let i=0,j=r.length-1;i<r.length;j=i++) a+=(r[j][0]*r[i][1]-r[i][0]*r[j][1]); return Math.abs(a/2); }
+function createGeoFit(allRings,w,h) {
+  const pts=allRings.flat(); let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  pts.forEach(([x,y])=>{if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;});
+  const pad=35, sx=(w-2*pad)/(maxX-minX||1), sy=(h-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
+  const ox=(w-(maxX-minX)*s)/2-minX*s, oy=(h-(maxY-minY)*s)/2+maxY*s;
+  return ([x,y])=>[x*s+ox,oy-y*s];
+}
+async function tryDrawRealMap() {
+  try {
+    const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),3500);
+    const res=await fetch(CONFIG.mapTopoUrl,{signal:ctl.signal,cache:"force-cache"}); clearTimeout(timer);
+    if(!res.ok) throw new Error("map HTTP "+res.status); const topo=await res.json();
+    const obj=topo.objects.counties || topo.objects[Object.keys(topo.objects).find(k=>k.toLowerCase().includes("count"))]; if(!obj) throw new Error("counties object missing");
+    const join=topoArcDecoder(topo); const features=obj.geometries.map(g=>({g,rings:geometryRings(g,join),name:countyDisplay(g.properties?.COUNTYNAME||g.properties?.COUNTY||g.properties?.name||"")}));
+    const all=features.flatMap(f=>f.rings); const svg=document.querySelector("#map"); const w=600,h=760, project=createGeoFit(all,w,h); svg.innerHTML="";svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+    features.forEach(f=>{
+      if(!f.name)return; const hasData=rowsForCounty(f.name).length>0; const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(f.name)}`}); group.dataset.county=f.name;
+      f.rings.forEach(r=>{if(r.length<3)return; const d=r.map((pt,i)=>{const [x,y]=project(pt);return `${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;}).join(" ")+" Z"; group.appendChild(svgEl("path",{d,class:"map-part"}));});
+      bindCountyElement(group,f.name); svg.appendChild(group);
+      const main=f.rings.slice().sort((a,b)=>polygonArea(b)-polygonArea(a))[0]; if(main?.length){ const xs=main.map(p=>project(p)[0]),ys=main.map(p=>project(p)[1]); const x=(Math.min(...xs)+Math.max(...xs))/2,y=(Math.min(...ys)+Math.max(...ys))/2; const t=svgEl("text",{x,y,class:rowsForCounty(f.name).length?"county-label":"county-label no-data"});t.textContent=f.name.replace(/[縣市]$/,"");svg.appendChild(t); }
+    });
+    updateMapSelection(); document.querySelector("#mapMode").textContent="精細行政區界線已載入（Taiwan Atlas）"; return true;
+  } catch(e) { console.warn("精細地圖無法連線，使用內建離線地圖",e); return false; }
+}
+function parseCsv(text) {
+  const rows=[]; let row=[],field="",quoted=false;
+  const clean=v=>v.endsWith(String.fromCharCode(13))?v.slice(0,-1):v;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(quoted){
+      if(c==='"' && n==='"'){field+='"';i++;}
+      else if(c==='"') quoted=false;
+      else field+=c;
+    } else {
+      if(c==='"') quoted=true;
+      else if(c===','){row.push(clean(field));field="";}
+      else if(c.charCodeAt(0)===10){row.push(clean(field));rows.push(row);row=[];field="";}
+      else field+=c;
+    }
+  }
+  if(field || row.length){row.push(clean(field));rows.push(row);}
+  if(rows.length<2)return[];
+  const hdr=rows[0];
+  return rows.slice(1).filter(r=>r.some(Boolean)).map(r=>Object.fromEntries(hdr.map((h,i)=>[h,r[i]||""])));
+}
+async function tryLoadSheet() {
+ if(!CONFIG.sheetCsvUrl) return;
+ try { const res=await fetch(CONFIG.sheetCsvUrl); if(!res.ok)throw new Error(res.status); const parsed=parseCsv(await res.text()); if(parsed.length) farmers=parsed.map(r=>({county:r["縣市"]||"",town:r["鄉鎮/區"]||"",name:r["農友/單位"]||"",items:r["供應品項"]||"",photo:r["照片網址"]||"",intro:r["農友介紹"]||"",story:r["圖文說明"]||"",article:r["文章連結"]||"",status:r["資料狀態"]||"",updated:r["最後更新"]||"",source:r["來源縣市標題"]||""})); } catch(e){console.warn("Google Sheet 讀取失敗，改用網站內建資料",e)}
+}
+(async()=>{
+  await tryLoadSheet(); fillCountyFilter(); renderList(farmers); drawSchematicMap();
+  // 非必要增強：若能連外，再換成精細真實行政界；失敗不影響使用。
+  tryDrawRealMap();
+})();
+</script>
+</body>
+</html>
