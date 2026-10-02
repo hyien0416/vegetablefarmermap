@@ -23,8 +23,8 @@ input{min-width:220px;flex:1} button,.btn{cursor:pointer} .primary{background:va
 .county{fill:var(--county-color,#dfe5dd);stroke:#fff;stroke-width:1.35;cursor:pointer;transition:fill .15s,filter .15s,stroke-width .15s,opacity .15s;outline:none}
 .county.has{opacity:1}.county.no-data{opacity:.55}
 .county:hover,.county:focus{fill:var(--hover);opacity:1;stroke-width:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}.county.selected{fill:var(--selected);opacity:1;stroke-width:2}
-.county-label{font-size:13px;font-weight:800;fill:#1f3625;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none;text-anchor:middle}
-.county-label.no-data{fill:#758078;font-weight:600;font-size:11.5px}
+.county-label{font-size:13px;font-weight:800;fill:#1f3625;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:auto;cursor:pointer;text-anchor:middle}
+.county-label.no-data{fill:#758078;font-weight:600;font-size:11.5px}.county-label-hit{fill:transparent;stroke:none;pointer-events:all;cursor:pointer}
 .tip{position:fixed;display:none;pointer-events:auto;z-index:60;width:min(410px,calc(100vw - 24px));max-height:72vh;overflow:hidden;background:#203827;color:#fff;padding:0;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.24);font-size:14px;line-height:1.55;cursor:default}
 .tip-head{padding:13px 15px 9px;background:#203827;border-bottom:1px solid rgba(255,255,255,.14)}
 .tip h3{margin:0 0 5px;font-size:18px}.tip .tip-meta{opacity:.78;margin-bottom:3px}.tip-scroll-hint{font-size:12px;color:#d9eadc;margin-top:5px}
@@ -204,6 +204,18 @@ function bindCountyElement(el, county) {
   el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelectedCounty(county);}});
 }
 function svgEl(name,attrs={}) { const el=document.createElementNS(SVGNS,name); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
+const SMALL_CITY_LABEL_OFFSETS={"台北市":[-22,14],"基隆市":[12,-8],"新竹市":[-12,10],"嘉義市":[-14,0]};
+function appendCountyLabel(svg,county,x,y){
+  const [dx,dy]=SMALL_CITY_LABEL_OFFSETS[county]||[0,0];
+  const lx=x+dx, ly=y+dy, hasData=rowsForCounty(county).length>0;
+  if(SMALL_CITY_LABEL_OFFSETS[county]){
+    const hit=svgEl("rect",{x:lx-26,y:ly-16,width:52,height:32,rx:8,class:"county-label-hit"});
+    bindCountyElement(hit,county); svg.appendChild(hit);
+  }
+  const t=svgEl("text",{x:lx,y:ly,class:hasData?"county-label":"county-label no-data"});
+  t.textContent=county.replace(/[縣市]$/,"");
+  bindCountyElement(t,county); svg.appendChild(t);
+}
 
 function drawSchematicMap() {
   const svg=document.querySelector("#map"); svg.innerHTML=""; svg.setAttribute("viewBox","0 0 600 760");
@@ -212,8 +224,7 @@ function drawSchematicMap() {
     const hasData=rowsForCounty(item.county).length>0; const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(item.county)}`}); group.dataset.county=item.county;
     item.parts.forEach(points=>{const poly=svgEl("polygon",{points,class:"map-part"});group.appendChild(poly);});
     bindCountyElement(group,item.county); svg.appendChild(group);
-    const [x,y]=item.label; const t=svgEl("text",{x,y,class:rowsForCounty(item.county).length?"county-label":"county-label no-data"});
-    t.textContent=item.county.replace(/[縣市]$/,""); svg.appendChild(t);
+    const [x,y]=item.label; appendCountyLabel(svg,item.county,x,y);
   });
   updateMapSelection();
   document.querySelector("#mapMode").textContent="內建離線行政區互動圖（可直接雙擊 HTML 使用）";
@@ -255,7 +266,7 @@ async function tryDrawRealMap() {
       if(!f.name)return; const hasData=rowsForCounty(f.name).length>0; const group=svgEl("g",{class:hasData?"county has":"county no-data",style:`--county-color:${countyColor(f.name)}`}); group.dataset.county=f.name;
       f.rings.forEach(r=>{if(r.length<3)return; const d=r.map((pt,i)=>{const [x,y]=project(pt);return `${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;}).join(" ")+" Z"; group.appendChild(svgEl("path",{d,class:"map-part"}));});
       bindCountyElement(group,f.name); svg.appendChild(group);
-      const main=f.rings.slice().sort((a,b)=>polygonArea(b)-polygonArea(a))[0]; if(main?.length){ const xs=main.map(p=>project(p)[0]),ys=main.map(p=>project(p)[1]); const x=(Math.min(...xs)+Math.max(...xs))/2,y=(Math.min(...ys)+Math.max(...ys))/2; const t=svgEl("text",{x,y,class:rowsForCounty(f.name).length?"county-label":"county-label no-data"});t.textContent=f.name.replace(/[縣市]$/,"");svg.appendChild(t); }
+      const main=f.rings.slice().sort((a,b)=>polygonArea(b)-polygonArea(a))[0]; if(main?.length){ const xs=main.map(p=>project(p)[0]),ys=main.map(p=>project(p)[1]); const x=(Math.min(...xs)+Math.max(...xs))/2,y=(Math.min(...ys)+Math.max(...ys))/2; appendCountyLabel(svg,f.name,x,y); }
     });
     updateMapSelection(); document.querySelector("#mapMode").textContent="精細行政區界線已載入（Taiwan Atlas）"; return true;
   } catch(e) { console.warn("精細地圖無法連線，使用內建離線地圖",e); return false; }
