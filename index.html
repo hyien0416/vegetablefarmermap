@@ -206,7 +206,9 @@ function bindCountyElement(el, county) {
 function svgEl(name,attrs={}) { const el=document.createElementNS(SVGNS,name); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
 const SMALL_CITY_LABEL_OFFSETS={"台北市":[-22,14],"基隆市":[12,-8],"新竹市":[-12,10],"嘉義市":[-14,0]};
 function appendCountyLabel(svg,county,x,y){
-  const [dx,dy]=SMALL_CITY_LABEL_OFFSETS[county]||[0,0];
+  const baseOffset=SMALL_CITY_LABEL_OFFSETS[county]||[0,0];
+  const extraOffset=county==="新北市"?[0,22]:[0,0];
+  const dx=baseOffset[0]+extraOffset[0], dy=baseOffset[1]+extraOffset[1];
   const lx=x+dx, ly=y+dy, hasData=rowsForCounty(county).length>0;
   if(SMALL_CITY_LABEL_OFFSETS[county]){
     const hit=svgEl("rect",{x:lx-26,y:ly-16,width:52,height:32,rx:8,class:"county-label-hit"});
