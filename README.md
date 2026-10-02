@@ -44,3 +44,6 @@ https://docs.google.com/spreadsheets/d/1ITAofsxS35Z9nWeiU4MzFXQdSE6Z1Z6Ndw6vyxt4
 - 滑鼠移到縣市時，農友浮動清單有固定最大高度。
 - 農友較多時，可把滑鼠移入清單並使用滾輪向下瀏覽。
 - 滑過縣市維持黃色提示，點選縣市維持橘色提示。
+
+## Vercel 自動部署
+GitHub 已連接 Vercel；main 分支更新時自動部署。
