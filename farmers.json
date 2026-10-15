@@ -62,7 +62,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "台北/新北"
+    "source": "台北/新北",
+    "photoRotation": 90
   },
   {
     "county": "新北市",
@@ -114,7 +115,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "宜蘭"
+    "source": "宜蘭",
+    "photoRotation": 90
   },
   {
     "county": "宜蘭縣",
@@ -231,7 +233,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "桃園"
+    "source": "桃園",
+    "photoRotation": 270
   },
   {
     "county": "桃園市",
@@ -700,7 +703,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "南投"
+    "source": "南投",
+    "photoRotation": 90
   },
   {
     "county": "南投縣",
@@ -739,7 +743,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "雲林"
+    "source": "雲林",
+    "photoRotation": 90
   },
   {
     "county": "雲林縣",
@@ -856,7 +861,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "雲林"
+    "source": "雲林",
+    "photoRotation": 90
   },
   {
     "county": "雲林縣",
@@ -947,7 +953,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "嘉義"
+    "source": "嘉義",
+    "photoRotation": 90
   },
   {
     "county": "嘉義縣市",
