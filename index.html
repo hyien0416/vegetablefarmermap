@@ -137,9 +137,20 @@ function renderList(rows,title="全部農友",county="") {
     el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open();}});
   });
 }
-function openFarmer(f) {
+async function resolvePhotoSrc(photo){
+  if(!photo)return "";
+  if(!photo.endsWith(".b64")) return photo;
+  try{
+    const res=await fetch(photo,{cache:"force-cache"});
+    if(!res.ok) throw new Error("photo "+res.status);
+    const b64=(await res.text()).trim();
+    return "data:image/jpeg;base64,"+b64;
+  }catch(e){console.warn("照片載入失敗",e);return "";}
+}
+async function openFarmer(f) {
   if(!f)return;
-  const photo=f.photo?`<img src="${esc(f.photo)}" alt="${esc(f.name)}">`:`<div>📷 農友照片待補</div>`;
+  const resolvedPhoto=await resolvePhotoSrc(f.photo||"");
+  const photo=resolvedPhoto?`<img src="${esc(resolvedPhoto)}" alt="${esc(f.name)}">`:`<div>📷 農友照片待補</div>`;
   const chips=String(f.items||"").split("、").filter(Boolean).map(x=>`<span class="chip">${esc(x)}</span>`).join("");
   document.querySelector("#drawerContent").innerHTML=`<div class="hero">${photo}</div><div class="detail"><h2>${esc(f.name)}</h2><div class="meta">${esc(countyFromFarmer(f))}・${esc(f.town)}</div><div class="supply-title">供應品項</div><div class="chips">${chips}</div><div class="section"><h3>農友介紹</h3><p>${f.intro?esc(f.intro):'<span class="placeholder">待補農友介紹。</span>'}</p></div><div class="section"><h3>產地故事／圖文說明</h3><p>${f.story?esc(f.story):'<span class="placeholder">待補圖文內容。</span>'}</p></div>${f.article?`<div class="section"><a class="btn primary" href="${esc(f.article)}" target="_blank" rel="noopener">閱讀相關文章</a></div>`:""}</div>`;
   const d=document.querySelector("#drawer"); d.classList.add("open"); d.setAttribute("aria-hidden","false");
