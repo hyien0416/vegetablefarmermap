@@ -361,7 +361,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "新竹"
+    "source": "新竹",
+    "photoRotation": 90
   },
   {
     "county": "新竹縣",
@@ -1128,7 +1129,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "屏東"
+    "source": "屏東",
+    "photoRotation": 90
   },
   {
     "county": "屏東縣",
@@ -1141,7 +1143,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "屏東"
+    "source": "屏東",
+    "photoRotation": 90
   },
   {
     "county": "屏東縣",
@@ -1154,7 +1157,8 @@
     "article": "",
     "status": "資料完整",
     "updated": "2026-10-15",
-    "source": "屏東"
+    "source": "屏東",
+    "photoRotation": 90
   },
   {
     "county": "屏東縣",
